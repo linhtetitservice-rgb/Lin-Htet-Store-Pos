@@ -3,1045 +3,318 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>StorePOS Pro - Point of Sale & Store Management</title>
-  <!-- Tailwind CSS -->
+  <title>Lin Htet Store POS</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <!-- Google Fonts: Inter & Noto Sans Myanmar for Burmese UTF-8 support -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- html2canvas for Voucher PNG Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body { -webkit-tap-highlight-color: transparent; user-select: none; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans pb-16">
+
+  <!-- Header -->
+  <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-md">
+    <div>
+      <h1 id="shop-title" class="font-bold text-lg text-emerald-400">Lin Htet Store POS</h1>
+      <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">READY</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="openModal('modal-settings')" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="flex bg-slate-800/80 border-b border-slate-700 text-xs font-semibold overflow-x-auto">
+    <button onclick="switchTab('pos')" id="tab-btn-pos" class="flex-1 py-3 text-center border-b-2 border-emerald-400 text-emerald-400 font-bold">POS</button>
+    <button onclick="switchTab('inventory')" id="tab-btn-inventory" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400">Inventory</button>
+    <button onclick="switchTab('sales')" id="tab-btn-sales" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400">Sales</button>
+    <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400">Analytics</button>
+  </nav>
+
+  <!-- POS TAB -->
+  <main id="tab-pos" class="tab-content active p-4 flex-1">
+    <div class="mb-4">
+      <input type="text" id="pos-search" oninput="renderPOSProducts()" placeholder="🔍 Search product..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+    </div>
+
+    <!-- Product Grid -->
+    <div id="pos-product-list" class="grid grid-cols-2 gap-3 mb-6"></div>
+
+    <!-- Current Bill / Cart Summary -->
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg">
+      <h3 class="font-bold text-sm text-slate-300 mb-2">Current Cart (<span id="cart-count">0</span> items)</h3>
+      <div id="cart-items" class="divide-y divide-slate-700 max-h-40 overflow-y-auto mb-3 text-xs"></div>
+      
+      <div class="flex justify-between items-center text-sm font-semibold border-t border-slate-700 pt-2 mb-3">
+        <span>Total:</span>
+        <span id="cart-total" class="text-lg text-emerald-400 font-black">0 MMK</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <select id="pos-payment" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs">
+          <option value="Cash">Cash</option>
+          <option value="KPay">KPay</option>
+          <option value="WavePay">WavePay</option>
+        </select>
+        <button onclick="checkout()" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-slate-900 font-bold rounded-lg py-2 text-xs transition">
+          Checkout & Voucher
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- INVENTORY TAB -->
+  <main id="tab-inventory" class="tab-content p-4 flex-1">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="font-bold text-base text-slate-200">Stock Inventory</h2>
+      <button onclick="openAddProductModal()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold px-3 py-1.5 rounded-lg text-xs">+ Add Item</button>
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900/50 text-slate-400 border-b border-slate-700">
+          <tr>
+            <th class="p-3">Item</th>
+            <th class="p-3">Price</th>
+            <th class="p-3">Qty</th>
+            <th class="p-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="inventory-list" class="divide-y divide-slate-700"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- SALES TAB -->
+  <main id="tab-sales" class="tab-content p-4 flex-1">
+    <h2 class="font-bold text-base text-slate-200 mb-3">Sales Records</h2>
+    <div id="sales-list" class="space-y-2 text-xs"></div>
+  </main>
+
+  <!-- ANALYTICS TAB -->
+  <main id="tab-analytics" class="tab-content p-4 flex-1">
+    <h2 class="font-bold text-base text-slate-200 mb-3">Analytics & Profit</h2>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="bg-slate-800 border border-slate-700 p-3 rounded-xl">
+        <p class="text-xs text-slate-400">Total Revenue</p>
+        <h3 id="stat-revenue" class="text-base font-bold text-emerald-400">0 MMK</h3>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-3 rounded-xl">
+        <p class="text-xs text-slate-400">Net Profit</p>
+        <h3 id="stat-profit" class="text-base font-bold text-blue-400">0 MMK</h3>
+      </div>
+    </div>
+  </main>
+
+  <!-- Voucher Receipt Modal -->
+  <div id="modal-voucher" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-sm w-full p-4 flex flex-col">
+      <div id="voucher-preview" class="bg-white text-black p-4 rounded-xl text-xs font-mono mb-4">
+        <div class="text-center pb-2 border-b border-dashed border-gray-300">
+          <h3 id="v-shop" class="font-bold text-base">Shop Name</h3>
+          <p id="v-date" class="text-[10px] text-gray-500"></p>
+        </div>
+        <div id="v-items" class="py-2 border-b border-dashed border-gray-300 space-y-1"></div>
+        <div class="pt-2 flex justify-between font-bold text-sm">
+          <span>TOTAL:</span>
+          <span id="v-total">0</span>
+        </div>
+        <p class="text-center text-[10px] text-gray-400 mt-2">Thank you! Come again.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="downloadVoucherPNG()" class="bg-emerald-500 text-slate-900 font-bold py-2 rounded-lg text-xs">Download PNG</button>
+        <button onclick="closeModal('modal-voucher')" class="bg-slate-700 text-white py-2 rounded-lg text-xs">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'Noto Sans Myanmar', 'sans-serif'],
-            mono: ['Space Mono', 'monospace'],
-          },
-          colors: {
-            brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-              800: '#3730a3',
-              900: '#312e81',
-            }
-          }
-        }
-      }
+    // State
+    let products = JSON.parse(localStorage.getItem('pos_products')) || [
+      { id: 1, name: 'Cola Can', cost: 1000, price: 1500, stock: 20 },
+      { id: 2, name: 'Coffee Mix', cost: 300, price: 500, stock: 50 }
+    ];
+    let cart = [];
+    let sales = JSON.parse(localStorage.getItem('pos_sales')) || [];
+    let settings = JSON.parse(localStorage.getItem('pos_settings')) || { shopName: 'Lin Htet Store' };
+
+    function saveState() {
+      localStorage.setItem('pos_products', JSON.stringify(products));
+      localStorage.setItem('pos_sales', JSON.stringify(sales));
+      localStorage.setItem('pos_settings', JSON.stringify(settings));
     }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabName).classList.add('active');
+      ['pos', 'inventory', 'sales', 'analytics'].forEach(t => {
+        const btn = document.getElementById('tab-btn-' + t);
+        if (t === tabName) {
+          btn.className = 'flex-1 py-3 text-center border-b-2 border-emerald-400 text-emerald-400 font-bold';
+        } else {
+          btn.className = 'flex-1 py-3 text-center border-b-2 border-transparent text-slate-400';
+        }
+      });
+      if (tabName === 'inventory') renderInventory();
+      if (tabName === 'sales') renderSales();
+      if (tabName === 'analytics') renderAnalytics();
+    }
+
+    function renderPOSProducts() {
+      const q = document.getElementById('pos-search').value.toLowerCase();
+      const list = document.getElementById('pos-product-list');
+      list.innerHTML = '';
+      products.filter(p => p.name.toLowerCase().includes(q)).forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800 border border-slate-700 p-3 rounded-xl cursor-pointer active:bg-slate-700';
+        card.onclick = () => addToCart(p.id);
+        card.innerHTML = `
+          <h4 class="font-bold text-xs text-slate-200">${p.name}</h4>
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-emerald-400 font-bold text-xs">${p.price} MMK</span>
+            <span class="text-[10px] text-slate-400">Stock: ${p.stock}</span>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function addToCart(id) {
+      const p = products.find(x => x.id === id);
+      if (!p || p.stock <= 0) return alert('Out of stock!');
+      const exist = cart.find(x => x.id === id);
+      if (exist) {
+        if (exist.qty >= p.stock) return alert('Exceeds available stock!');
+        exist.qty++;
+      } else {
+        cart.push({ ...p, qty: 1 });
+      }
+      renderCart();
+    }
+
+    function renderCart() {
+      const el = document.getElementById('cart-items');
+      el.innerHTML = '';
+      let total = 0;
+      let count = 0;
+      cart.forEach(item => {
+        total += item.price * item.qty;
+        count += item.qty;
+        const row = document.createElement('div');
+        row.className = 'py-1 flex justify-between items-center';
+        row.innerHTML = `
+          <span>${item.name} x${item.qty}</span>
+          <span class="font-semibold">${item.price * item.qty} MMK</span>
+        `;
+        el.appendChild(row);
+      });
+      document.getElementById('cart-count').innerText = count;
+      document.getElementById('cart-total').innerText = total + ' MMK';
+    }
+
+    function checkout() {
+      if (cart.length === 0) return alert('Cart is empty!');
+      const total = cart.reduce((a, b) => a + (b.price * b.qty), 0);
+      const cost = cart.reduce((a, b) => a + (b.cost * b.qty), 0);
+      const sale = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        items: [...cart],
+        total: total,
+        profit: total - cost,
+        payment: document.getElementById('pos-payment').value
+      };
+
+      // Deduct stock
+      cart.forEach(c => {
+        const prod = products.find(p => p.id === c.id);
+        if (prod) prod.stock -= c.qty;
+      });
+
+      sales.unshift(sale);
+      saveState();
+
+      // Show Voucher
+      document.getElementById('v-shop').innerText = settings.shopName || 'Store POS';
+      document.getElementById('v-date').innerText = sale.date;
+      document.getElementById('v-total').innerText = total + ' MMK';
+      const vi = document.getElementById('v-items');
+      vi.innerHTML = '';
+      cart.forEach(i => {
+        vi.innerHTML += `<div class="flex justify-between"><span>${i.name} x${i.qty}</span><span>${i.price * i.qty}</span></div>`;
+      });
+
+      cart = [];
+      renderCart();
+      renderPOSProducts();
+      openModal('modal-voucher');
+    }
+
+    function renderInventory() {
+      const tb = document.getElementById('inventory-list');
+      tb.innerHTML = '';
+      products.forEach(p => {
+        tb.innerHTML += `
+          <tr class="hover:bg-slate-800/50">
+            <td class="p-3 font-semibold">${p.name}</td>
+            <td class="p-3">${p.price}</td>
+            <td class="p-3">${p.stock}</td>
+            <td class="p-3 text-right">
+              <button onclick="deleteProduct(${p.id})" class="text-rose-400 font-bold">Del</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderSales() {
+      const sl = document.getElementById('sales-list');
+      sl.innerHTML = '';
+      sales.forEach(s => {
+        sl.innerHTML += `
+          <div class="bg-slate-800 border border-slate-700 p-3 rounded-xl flex justify-between items-center">
+            <div>
+              <p class="font-bold text-slate-200">${s.payment} - ${s.total} MMK</p>
+              <p class="text-[10px] text-slate-400">${s.date}</p>
+            </div>
+            <span class="text-xs text-emerald-400 font-semibold">+${s.profit} Profit</span>
+          </div>
+        `;
+      });
+    }
+
+    function renderAnalytics() {
+      const rev = sales.reduce((a, b) => a + b.total, 0);
+      const prof = sales.reduce((a, b) => a + b.profit, 0);
+      document.getElementById('stat-revenue').innerText = rev + ' MMK';
+      document.getElementById('stat-profit').innerText = prof + ' MMK';
+    }
+
+    function downloadVoucherPNG() {
+      const node = document.getElementById('voucher-preview');
+      html2canvas(node).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'voucher-' + Date.now() + '.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      document.getElementById(id).classList.add('flex');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
+    }
+
+    // Init
+    window.onload = () => {
+      renderPOSProducts();
+    };
   </script>
-  <link rel="stylesheet" href="./app/src/main/assets/app.css">
-</head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
-
-  <!-- APP CONTAINER -->
-  <div id="app" class="flex-1 flex flex-col h-screen overflow-hidden">
-    
-    <!-- TOP NAVBAR -->
-    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between z-30 shrink-0">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-          <i class="fa-solid fa-cash-register text-lg"></i>
-        </div>
-        <div>
-          <h1 id="navShopName" class="font-bold text-base tracking-tight text-white flex items-center gap-2">
-            StorePOS Pro
-            <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Offline Ready</span>
-          </h1>
-          <p id="navShopSlogan" class="text-xs text-slate-400">Retail & Store Management</p>
-        </div>
-      </div>
-
-      <!-- Center Nav Tabs -->
-      <nav class="hidden md:flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
-        <button onclick="switchTab('pos')" id="tabBtn-pos" class="tab-btn active px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all">
-          <i class="fa-solid fa-cart-shopping"></i> POS Cashier
-        </button>
-        <button onclick="switchTab('inventory')" id="tabBtn-inventory" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200">
-          <i class="fa-solid fa-boxes-stacked"></i> Inventory
-        </button>
-        <button onclick="switchTab('sales')" id="tabBtn-sales" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200">
-          <i class="fa-solid fa-receipt"></i> Sales History
-        </button>
-        <button onclick="switchTab('analytics')" id="tabBtn-analytics" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200">
-          <i class="fa-solid fa-chart-line"></i> Analytics
-        </button>
-        <button onclick="switchTab('settings')" id="tabBtn-settings" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200">
-          <i class="fa-solid fa-sliders"></i> Settings
-        </button>
-      </nav>
-
-      <!-- Right Header Actions -->
-      <div class="flex items-center space-x-2.5">
-        <div id="liveClock" class="hidden sm:flex flex-col text-right font-mono text-[11px] text-slate-400">
-          <span class="text-slate-200 font-semibold" id="clockTime">00:00:00</span>
-          <span class="text-[10px]" id="clockDate">--/--/----</span>
-        </div>
-
-        <button onclick="triggerDailyTelegramReport()" title="Send Telegram Daily Report" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 text-xs flex items-center gap-1.5 transition">
-          <i class="fa-brands fa-telegram text-base"></i>
-          <span class="hidden xl:inline font-medium">Daily Report</span>
-        </button>
-
-        <button onclick="lockScreen()" title="Lock Admin Session" class="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs flex items-center gap-1.5 transition">
-          <i class="fa-solid fa-lock"></i>
-          <span class="hidden xl:inline font-medium">Lock</span>
-        </button>
-      </div>
-    </header>
-
-    <!-- MOBILE SUB-NAVIGATION -->
-    <div class="md:hidden flex bg-slate-900 border-b border-slate-800 overflow-x-auto py-1 px-2 space-x-1 shrink-0">
-      <button onclick="switchTab('pos')" class="mobile-tab-btn flex-1 min-w-[75px] py-1.5 rounded-lg text-[11px] font-semibold text-center text-indigo-400 bg-slate-800">POS</button>
-      <button onclick="switchTab('inventory')" class="mobile-tab-btn flex-1 min-w-[75px] py-1.5 rounded-lg text-[11px] font-semibold text-center text-slate-400">Inventory</button>
-      <button onclick="switchTab('sales')" class="mobile-tab-btn flex-1 min-w-[75px] py-1.5 rounded-lg text-[11px] font-semibold text-center text-slate-400">Sales</button>
-      <button onclick="switchTab('analytics')" class="mobile-tab-btn flex-1 min-w-[75px] py-1.5 rounded-lg text-[11px] font-semibold text-center text-slate-400">Analytics</button>
-      <button onclick="switchTab('settings')" class="mobile-tab-btn flex-1 min-w-[75px] py-1.5 rounded-lg text-[11px] font-semibold text-center text-slate-400">Settings</button>
-    </div>
-
-    <!-- MAIN CONTENT VIEWPORT -->
-    <main class="flex-1 overflow-hidden relative">
-
-      <!-- TAB 1: POS CASHIER SCREEN -->
-      <section id="tab-pos" class="tab-content h-full flex flex-col lg:flex-row overflow-hidden">
-        
-        <!-- Left Column: Product Catalog & Search -->
-        <div class="flex-1 flex flex-col h-full overflow-hidden bg-slate-950 border-r border-slate-800/80">
-          
-          <!-- Filter & Search Toolbar -->
-          <div class="p-3.5 bg-slate-900/90 border-b border-slate-800 flex flex-wrap gap-2.5 items-center justify-between shrink-0">
-            <div class="relative flex-1 min-w-[220px]">
-              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-              <input type="text" id="posSearchInput" oninput="renderPOSProducts()" placeholder="Search item by name, barcode, or SKU..."
-                class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition">
-              <button onclick="clearPosSearch()" id="clearSearchBtn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-
-            <!-- Barcode Gun Fast Entry -->
-            <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1 text-xs">
-              <i class="fa-solid fa-barcode text-indigo-400"></i>
-              <input type="text" id="posBarcodeFastScan" onkeydown="handleBarcodeEnter(event)" placeholder="Scan Barcode + Enter"
-                class="bg-transparent border-none text-xs text-white focus:outline-none w-36">
-            </div>
-          </div>
-
-          <!-- Category Pills -->
-          <div class="px-3.5 py-2 bg-slate-900/50 border-b border-slate-800/70 overflow-x-auto flex items-center gap-1.5 shrink-0 scrollbar-none" id="posCategoryPills">
-            <!-- Dynamic categories injected by JS -->
-          </div>
-
-          <!-- Product Grid -->
-          <div class="flex-1 overflow-y-auto p-3.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3" id="posProductGrid">
-            <!-- Dynamic product cards injected by JS -->
-          </div>
-        </div>
-
-        <!-- Right Column: Cart & Billing Panel -->
-        <div class="w-full lg:w-[410px] xl:w-[460px] flex flex-col h-full bg-slate-900 border-l border-slate-800 shrink-0">
-          
-          <!-- Cart Header -->
-          <div class="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900">
-            <div class="flex items-center gap-2">
-              <span class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
-                <i class="fa-solid fa-basket-shopping"></i>
-              </span>
-              <h2 class="font-bold text-sm text-white">Current Order</h2>
-              <span id="cartItemCountBadge" class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-            </div>
-
-            <div class="flex items-center gap-1">
-              <button onclick="holdCart()" title="Hold Order" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs transition">
-                <i class="fa-solid fa-pause"></i>
-              </button>
-              <button onclick="recallCart()" title="Recall Held Orders" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs transition">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-              </button>
-              <button onclick="clearCartConfirm()" title="Clear Cart" class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-rose-400 text-xs transition">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Customer Name & Phone Input -->
-          <div class="px-3.5 py-2 bg-slate-950/50 border-b border-slate-800/80 flex gap-2 text-xs">
-            <input type="text" id="cartCustomerName" placeholder="Customer Name (Optional)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none focus:border-indigo-500">
-            <input type="text" id="cartCustomerPhone" placeholder="Phone" class="w-28 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none focus:border-indigo-500">
-          </div>
-
-          <!-- Cart Items Scrollable List -->
-          <div class="flex-1 overflow-y-auto p-3 space-y-2" id="cartItemsList">
-            <!-- Dynamic Cart Items injected by JS -->
-          </div>
-
-          <!-- Cart Summary & Calculation Footer -->
-          <div class="p-3.5 bg-slate-950 border-t border-slate-800 space-y-2 shrink-0">
-            
-            <div class="flex justify-between text-xs text-slate-400">
-              <span>Subtotal</span>
-              <span id="cartSubtotal" class="font-mono text-slate-200 font-medium">0 MMK</span>
-            </div>
-
-            <!-- Discount Row -->
-            <div class="flex items-center justify-between text-xs text-slate-400">
-              <div class="flex items-center gap-1.5">
-                <span>Discount</span>
-                <select id="cartDiscountType" onchange="calculateCartTotals()" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-300 focus:outline-none">
-                  <option value="fixed">Fixed</option>
-                  <option value="percent">%</option>
-                </select>
-              </div>
-              <div class="flex items-center gap-1">
-                <input type="number" id="cartDiscountValue" oninput="calculateCartTotals()" value="0" min="0" class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-right text-xs text-white focus:outline-none focus:border-indigo-500">
-                <span id="cartDiscountDisplay" class="font-mono text-rose-400">-0 MMK</span>
-              </div>
-            </div>
-
-            <!-- Tax Row -->
-            <div class="flex justify-between text-xs text-slate-400">
-              <span id="cartTaxLabel">Tax (0%)</span>
-              <span id="cartTaxAmount" class="font-mono text-slate-200">0 MMK</span>
-            </div>
-
-            <!-- Grand Total -->
-            <div class="pt-2 border-t border-slate-800 flex justify-between items-baseline">
-              <span class="text-sm font-bold text-white">Grand Total</span>
-              <span id="cartGrandTotal" class="text-xl font-bold font-mono text-emerald-400">0 MMK</span>
-            </div>
-
-            <!-- Checkout Action Button -->
-            <button onclick="openPaymentModal()" id="btnCheckout" class="w-full mt-2 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none">
-              <i class="fa-solid fa-circle-check text-base"></i>
-              <span>Pay & Print Voucher</span>
-              <span id="btnPayAmount" class="font-mono text-xs bg-emerald-700/50 px-2 py-0.5 rounded-lg ml-1">0 MMK</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 2: INVENTORY & STOCK MANAGEMENT -->
-      <section id="tab-inventory" class="tab-content hidden h-full flex flex-col p-4 sm:p-6 overflow-y-auto bg-slate-950">
-        
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
-          <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-boxes-stacked text-indigo-400"></i> Stock & Inventory Control
-            </h2>
-            <p class="text-xs text-slate-400">Manage catalog, buying cost, selling prices, and restock logs</p>
-          </div>
-
-          <div class="flex items-center gap-2 flex-wrap">
-            <button onclick="openProductModal('create')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-lg shadow-indigo-600/30">
-              <i class="fa-solid fa-plus"></i> Add New Product
-            </button>
-            <button onclick="openCategoryManageModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition">
-              <i class="fa-solid fa-tags"></i> Categories
-            </button>
-            <button onclick="exportProductsCSV()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition">
-              <i class="fa-solid fa-file-csv"></i> Export CSV
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-          <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-bold">
-              <i class="fa-solid fa-layer-group"></i>
-            </div>
-            <div>
-              <div class="text-[11px] text-slate-400">Total Items</div>
-              <div id="invTotalProducts" class="text-lg font-bold font-mono text-white">0</div>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-sm font-bold">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            <div>
-              <div class="text-[11px] text-slate-400">Low / Out of Stock</div>
-              <div id="invLowStockCount" class="text-lg font-bold font-mono text-rose-400">0</div>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold">
-              <i class="fa-solid fa-coins"></i>
-            </div>
-            <div>
-              <div class="text-[11px] text-slate-400">Total Stock Value (Cost)</div>
-              <div id="invTotalCostValue" class="text-lg font-bold font-mono text-emerald-400">0</div>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm font-bold">
-              <i class="fa-solid fa-chart-pie"></i>
-            </div>
-            <div>
-              <div class="text-[11px] text-slate-400">Expected Sales Value</div>
-              <div id="invTotalRetailValue" class="text-lg font-bold font-mono text-sky-400">0</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2 flex-1 min-w-[200px]">
-            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
-            <input type="text" id="invSearchInput" oninput="renderInventoryTable()" placeholder="Search by name, category, or barcode..." class="bg-transparent text-xs text-white focus:outline-none w-full">
-          </div>
-          <div class="flex items-center gap-2">
-            <select id="invCategoryFilter" onchange="renderInventoryTable()" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none">
-              <option value="ALL">All Categories</option>
-            </select>
-            <select id="invStockStatusFilter" onchange="renderInventoryTable()" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none">
-              <option value="ALL">All Stock Status</option>
-              <option value="LOW">Low Stock Only</option>
-              <option value="OUT">Out of Stock</option>
-              <option value="IN">In Stock</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl flex flex-col">
-          <div class="overflow-x-auto flex-1">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 sticky top-0">
-                <tr>
-                  <th class="p-3.5">Product & SKU</th>
-                  <th class="p-3.5">Category</th>
-                  <th class="p-3.5 text-right">Cost Price</th>
-                  <th class="p-3.5 text-right">Selling Price</th>
-                  <th class="p-3.5 text-right">Margin</th>
-                  <th class="p-3.5 text-center">Stock Qty</th>
-                  <th class="p-3.5 text-center">Status</th>
-                  <th class="p-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="inventoryTableBody" class="divide-y divide-slate-800/60 text-slate-300">
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 3: SALES HISTORY & VOUCHERS -->
-      <section id="tab-sales" class="tab-content hidden h-full flex flex-col p-4 sm:p-6 overflow-y-auto bg-slate-950">
-        
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
-          <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-receipt text-indigo-400"></i> Sales Transactions & Vouchers
-            </h2>
-            <p class="text-xs text-slate-400">View customer receipts, reprint vouchers, export PNGs, or handle refunds</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="exportSalesCSV()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition">
-              <i class="fa-solid fa-file-excel"></i> Export Sales CSV
-            </button>
-          </div>
-        </div>
-
-        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2 flex-1 min-w-[200px]">
-            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
-            <input type="text" id="salesSearchInput" oninput="renderSalesTable()" placeholder="Search invoice #, customer name, phone..." class="bg-transparent text-xs text-white focus:outline-none w-full">
-          </div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <select id="salesDateFilter" onchange="renderSalesTable()" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none">
-              <option value="TODAY">Today</option>
-              <option value="YESTERDAY">Yesterday</option>
-              <option value="7DAYS">Last 7 Days</option>
-              <option value="THIS_MONTH">This Month</option>
-              <option value="ALL">All Time</option>
-            </select>
-            <select id="salesPaymentFilter" onchange="renderSalesTable()" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none">
-              <option value="ALL">All Payment Methods</option>
-              <option value="CASH">Cash</option>
-              <option value="KPAY">KPay (KBZPay)</option>
-              <option value="WAVEPAY">WavePay</option>
-              <option value="SPLIT">Split Payment</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl flex flex-col">
-          <div class="overflow-x-auto flex-1">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 sticky top-0">
-                <tr>
-                  <th class="p-3.5">Invoice #</th>
-                  <th class="p-3.5">Date & Time</th>
-                  <th class="p-3.5">Customer</th>
-                  <th class="p-3.5 text-center">Items</th>
-                  <th class="p-3.5 text-right">Grand Total</th>
-                  <th class="p-3.5 text-right">Profit</th>
-                  <th class="p-3.5 text-center">Payment Method</th>
-                  <th class="p-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="salesTableBody" class="divide-y divide-slate-800/60 text-slate-300">
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 4: FINANCIAL ANALYTICS & DASHBOARD -->
-      <section id="tab-analytics" class="tab-content hidden h-full flex flex-col p-4 sm:p-6 overflow-y-auto bg-slate-950 space-y-5">
-        
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-chart-line text-indigo-400"></i> Financial Analytics & Store Insights
-            </h2>
-            <p class="text-xs text-slate-400">Real-time revenue, gross margin, net profit breakdown, and trends</p>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <select id="analyticsRangeSelect" onchange="refreshAnalyticsDashboard()" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none">
-              <option value="7">Last 7 Days</option>
-              <option value="30" selected>Last 30 Days</option>
-              <option value="90">Last 90 Days</option>
-              <option value="365">This Year</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- 4 Overview Metric Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          
-          <div class="bg-gradient-to-br from-slate-900 to-indigo-950/40 border border-slate-800 p-4 rounded-2xl relative overflow-hidden shadow-lg">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Sales</span>
-              <span class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
-                <i class="fa-solid fa-wallet"></i>
-              </span>
-            </div>
-            <div id="statTodayRevenue" class="text-2xl font-extrabold font-mono text-white mt-2">0 MMK</div>
-            <div class="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-              <span id="statTodayOrdersCount" class="text-indigo-400 font-semibold">0</span> orders completed today
-            </div>
-          </div>
-
-          <div class="bg-gradient-to-br from-slate-900 to-blue-950/40 border border-slate-800 p-4 rounded-2xl relative overflow-hidden shadow-lg">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly Revenue</span>
-              <span class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">
-                <i class="fa-solid fa-calendar-check"></i>
-              </span>
-            </div>
-            <div id="statMonthRevenue" class="text-2xl font-extrabold font-mono text-white mt-2">0 MMK</div>
-            <div class="text-[11px] text-slate-400 mt-1">Total revenue in current period</div>
-          </div>
-
-          <div class="bg-gradient-to-br from-slate-900 to-emerald-950/40 border border-slate-800 p-4 rounded-2xl relative overflow-hidden shadow-lg">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Net Profit</span>
-              <span class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
-                <i class="fa-solid fa-chart-pie"></i>
-              </span>
-            </div>
-            <div id="statNetProfit" class="text-2xl font-extrabold font-mono text-emerald-400 mt-2">0 MMK</div>
-            <div class="text-[11px] text-slate-400 mt-1 font-mono text-[10px]">Sales - (Buying Cost × Sold Qty)</div>
-          </div>
-
-          <div class="bg-gradient-to-br from-slate-900 to-amber-950/40 border border-slate-800 p-4 rounded-2xl relative overflow-hidden shadow-lg">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Profit Margin</span>
-              <span class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs">
-                <i class="fa-solid fa-percent"></i>
-              </span>
-            </div>
-            <div id="statProfitMargin" class="text-2xl font-extrabold font-mono text-amber-400 mt-2">0.0%</div>
-            <div class="text-[11px] text-slate-400 mt-1">Average profitability ratio</div>
-          </div>
-        </div>
-
-        <!-- Charts Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          
-          <div class="lg:col-span-2 bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col">
-            <div class="flex justify-between items-center mb-3">
-              <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                <i class="fa-solid fa-chart-area text-indigo-400"></i> Revenue & Net Profit Trend
-              </h3>
-              <span class="text-[11px] text-slate-400 font-mono">Daily overview</span>
-            </div>
-            <div class="relative flex-1 min-h-[260px]">
-              <canvas id="salesTrendChart"></canvas>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col">
-            <div class="flex justify-between items-center mb-3">
-              <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                <i class="fa-solid fa-pie-chart text-emerald-400"></i> Payment Methods
-              </h3>
-            </div>
-            <div class="relative flex-1 min-h-[220px] flex items-center justify-center">
-              <canvas id="paymentMethodChart"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-            <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-              <i class="fa-solid fa-trophy text-amber-400"></i> Top Best-Selling Products
-            </h3>
-            <div id="topSellingList" class="space-y-2"></div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-            <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-              <i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Critical Low Stock Warnings
-            </h3>
-            <div id="analyticsLowStockList" class="space-y-2"></div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- TAB 5: SETTINGS & SHOP PROFILE -->
-      <section id="tab-settings" class="tab-content hidden h-full flex flex-col p-4 sm:p-6 overflow-y-auto bg-slate-950 space-y-6">
-        
-        <div>
-          <h2 class="text-xl font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-sliders text-indigo-400"></i> Store Settings & Configuration
-          </h2>
-          <p class="text-xs text-slate-400">Branding, Telegram sales bot notifications, security PIN, and database backup</p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">
-            <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
-              <i class="fa-solid fa-store text-indigo-400"></i>
-              <h3 class="font-bold text-sm text-white">Shop Profile & Receipt Branding</h3>
-            </div>
-
-            <div class="space-y-3 text-xs">
-              <div>
-                <label class="block text-slate-400 font-medium mb-1">Shop / Store Name</label>
-                <input type="text" id="setShopName" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-              </div>
-
-              <div>
-                <label class="block text-slate-400 font-medium mb-1">Tagline / Slogan</label>
-                <input type="text" id="setShopSlogan" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-slate-400 font-medium mb-1">Phone Number</label>
-                  <input type="text" id="setShopPhone" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                  <label class="block text-slate-400 font-medium mb-1">Currency Code</label>
-                  <input type="text" id="setCurrencySymbol" placeholder="MMK" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-slate-400 font-medium mb-1">Address</label>
-                <input type="text" id="setShopAddress" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-slate-400 font-medium mb-1">Tax Rate (%)</label>
-                  <input type="number" id="setTaxRate" min="0" max="100" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                  <label class="block text-slate-400 font-medium mb-1">Default Cashier Name</label>
-                  <input type="text" id="setCashierName" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-slate-400 font-medium mb-1">Voucher Footer Note</label>
-                <textarea id="setVoucherFooter" rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500" placeholder="ဝယ်ယူအားပေးမှုအတွက် အထူးကျေးဇူးတင်ပါသည်... Thank you!"></textarea>
-              </div>
-
-              <button onclick="saveShopSettings()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition">
-                <i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Shop Settings
-              </button>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4 flex flex-col justify-between">
-            <div class="space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div class="flex items-center gap-2">
-                  <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
-                  <h3 class="font-bold text-sm text-white">Telegram Sales Bot Alerts</h3>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" id="setTelegramEnabled" class="sr-only peer">
-                  <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
-                </label>
-              </div>
-
-              <p class="text-xs text-slate-400">
-                Instantly receive real-time sales receipts and daily summaries directly to your Telegram chat or staff group channel.
-              </p>
-
-              <div class="space-y-3 text-xs">
-                <div>
-                  <label class="block text-slate-400 font-medium mb-1">Bot Token (From @BotFather)</label>
-                  <input type="password" id="setTelegramBotToken" placeholder="123456789:ABCdefGhIJKlmNoPQRstuVWXyz" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-sky-500 font-mono text-[11px]">
-                </div>
-
-                <div>
-                  <label class="block text-slate-400 font-medium mb-1">Telegram Chat ID / Channel ID</label>
-                  <input type="text" id="setTelegramChatId" placeholder="e.g. 12345678 or -10012345678" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-sky-500 font-mono text-[11px]">
-                </div>
-
-                <div class="flex gap-2">
-                  <button onclick="saveTelegramSettings()" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold transition">
-                    <i class="fa-solid fa-save mr-1.5"></i> Save Telegram Config
-                  </button>
-                  <button onclick="testTelegramBotConnection()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-sky-500/30 rounded-xl font-semibold transition">
-                    <i class="fa-solid fa-paper-plane mr-1"></i> Test
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="border-t border-slate-800 pt-4 mt-4 space-y-3 text-xs">
-              <div class="flex items-center gap-2">
-                <i class="fa-solid fa-shield-halved text-rose-400"></i>
-                <h4 class="font-bold text-white">Security & Admin PIN</h4>
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <input type="password" id="setOldPin" placeholder="Current PIN" maxlength="6" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none">
-                <input type="password" id="setNewPin" placeholder="New 4-6 Digit PIN" maxlength="6" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none">
-              </div>
-              <button onclick="updateAdminPin()" class="w-full py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-xl font-semibold transition">
-                Change Admin Security PIN
-              </button>
-            </div>
-
-          </div>
-        </div>
-
-        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">
-          <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
-            <i class="fa-solid fa-database text-emerald-400"></i>
-            <h3 class="font-bold text-sm text-white">Data Backup, Restore & Offline Storage</h3>
-          </div>
-
-          <p class="text-xs text-slate-400">
-            All data is securely stored inside your browser's LocalStorage. You can export a full JSON backup anytime or seed sample store data for testing.
-          </p>
-
-          <div class="flex flex-wrap items-center gap-3">
-            <button onclick="exportDatabaseJSON()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-lg shadow-emerald-900/30">
-              <i class="fa-solid fa-download"></i> Export Full Backup (.JSON)
-            </button>
-
-            <label class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition">
-              <i class="fa-solid fa-upload"></i> Restore from JSON
-              <input type="file" id="importJsonFileInput" accept=".json" onchange="importDatabaseJSON(event)" class="hidden">
-            </label>
-
-            <button onclick="seedSampleStoreData()" class="px-4 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-semibold flex items-center gap-2 transition">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Load Sample Supermarket Data
-            </button>
-
-            <button onclick="resetAllStoreDataConfirm()" class="px-4 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center gap-2 ml-auto transition">
-              <i class="fa-solid fa-trash-can"></i> Factory Reset Store
-            </button>
-          </div>
-        </div>
-
-      </section>
-
-    </main>
-  </div>
-
-  <!-- CHECKOUT MODAL -->
-  <div id="paymentModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scaleUp">
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-        <div class="flex items-center gap-2">
-          <span class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold">
-            <i class="fa-solid fa-credit-card"></i>
-          </span>
-          <h3 class="font-bold text-white text-base">Complete Payment</h3>
-        </div>
-        <button onclick="closePaymentModal()" class="text-slate-400 hover:text-white text-lg">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="p-5 space-y-4">
-        <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-center">
-          <div class="text-xs text-slate-400 font-medium">Payable Amount</div>
-          <div id="modalPayableTotal" class="text-3xl font-extrabold font-mono text-emerald-400 mt-1">0 MMK</div>
-        </div>
-
-        <div>
-          <label class="block text-xs text-slate-400 font-semibold mb-2">Select Payment Method</label>
-          <div class="grid grid-cols-4 gap-2">
-            <button type="button" onclick="selectPaymentMethod('CASH')" id="payTab-CASH" class="pay-method-tab active py-2.5 px-2 rounded-xl text-xs font-bold text-center border transition flex flex-col items-center gap-1 bg-emerald-500/10 border-emerald-500 text-emerald-400">
-              <i class="fa-solid fa-money-bill-wave text-base"></i>
-              <span>Cash</span>
-            </button>
-            <button type="button" onclick="selectPaymentMethod('KPAY')" id="payTab-KPAY" class="pay-method-tab py-2.5 px-2 rounded-xl text-xs font-bold text-center border border-slate-800 text-slate-400 transition flex flex-col items-center gap-1 hover:border-slate-700">
-              <i class="fa-solid fa-mobile-screen-button text-base text-blue-400"></i>
-              <span>KPay</span>
-            </button>
-            <button type="button" onclick="selectPaymentMethod('WAVEPAY')" id="payTab-WAVEPAY" class="pay-method-tab py-2.5 px-2 rounded-xl text-xs font-bold text-center border border-slate-800 text-slate-400 transition flex flex-col items-center gap-1 hover:border-slate-700">
-              <i class="fa-solid fa-bolt text-base text-amber-400"></i>
-              <span>WavePay</span>
-            </button>
-            <button type="button" onclick="selectPaymentMethod('SPLIT')" id="payTab-SPLIT" class="pay-method-tab py-2.5 px-2 rounded-xl text-xs font-bold text-center border border-slate-800 text-slate-400 transition flex flex-col items-center gap-1 hover:border-slate-700">
-              <i class="fa-solid fa-arrows-split-up-and-left text-base text-purple-400"></i>
-              <span>Split</span>
-            </button>
-          </div>
-        </div>
-
-        <div id="paymentMethodDetails" class="space-y-3"></div>
-      </div>
-
-      <div class="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-end gap-3">
-        <button onclick="closePaymentModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
-          Cancel
-        </button>
-        <button onclick="processFinalCheckout()" id="btnConfirmPay" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-900/40 flex items-center gap-2 transition">
-          <i class="fa-solid fa-check"></i>
-          <span>Confirm & Issue Voucher</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- VOUCHER RECEIPT MODAL -->
-  <div id="voucherModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[95vh] flex flex-col overflow-hidden shadow-2xl animate-scaleUp">
-      <div class="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950 shrink-0">
-        <div class="flex items-center gap-2">
-          <span class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
-            <i class="fa-solid fa-receipt"></i>
-          </span>
-          <h3 class="font-bold text-white text-sm">Receipt Voucher</h3>
-        </div>
-        <button onclick="closeVoucherModal()" class="text-slate-400 hover:text-white text-base">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="flex-1 overflow-y-auto p-4 bg-slate-950 flex justify-center">
-        <div id="receiptPrintableArea" class="w-full max-w-[360px] bg-white text-slate-900 p-5 rounded-lg shadow-lg font-mono text-[11px] leading-relaxed select-text">
-          <div class="text-center pb-3 border-b border-dashed border-slate-400">
-            <h2 id="vShopName" class="text-base font-bold tracking-tight text-slate-900 uppercase">STORE POS</h2>
-            <p id="vShopSlogan" class="text-[10px] text-slate-600">Retail & Store Management</p>
-            <p id="vShopPhone" class="text-[10px] text-slate-600 mt-0.5">Tel: 09-00000000</p>
-            <p id="vShopAddress" class="text-[9px] text-slate-500">Yangon, Myanmar</p>
-          </div>
-
-          <div class="py-2 border-b border-dashed border-slate-400 space-y-0.5 text-[10px] text-slate-700">
-            <div class="flex justify-between">
-              <span>Invoice:</span>
-              <span id="vInvoiceNo" class="font-bold">INV-000000</span>
-            </div>
-            <div class="flex justify-between">
-              <span>Date:</span>
-              <span id="vDateTime">2026-08-18 12:00</span>
-            </div>
-            <div class="flex justify-between">
-              <span>Cashier:</span>
-              <span id="vCashierName">Admin</span>
-            </div>
-            <div id="vCustomerRow" class="flex justify-between hidden">
-              <span>Customer:</span>
-              <span id="vCustomerName">-</span>
-            </div>
-          </div>
-
-          <div class="py-2 border-b border-dashed border-slate-400">
-            <table class="w-full text-left text-[10px]">
-              <thead>
-                <tr class="border-b border-slate-300 font-bold">
-                  <th class="pb-1">Item</th>
-                  <th class="pb-1 text-center">Qty</th>
-                  <th class="pb-1 text-right">Price</th>
-                  <th class="pb-1 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody id="vItemsBody" class="divide-y divide-slate-200"></tbody>
-            </table>
-          </div>
-
-          <div class="py-2 border-b border-dashed border-slate-400 space-y-1 text-[10px]">
-            <div class="flex justify-between">
-              <span>Subtotal:</span>
-              <span id="vSubtotal" class="font-semibold">0 MMK</span>
-            </div>
-            <div id="vDiscountRow" class="flex justify-between text-rose-600 hidden">
-              <span>Discount:</span>
-              <span id="vDiscount">-0 MMK</span>
-            </div>
-            <div id="vTaxRow" class="flex justify-between hidden">
-              <span id="vTaxLabel">Tax (5%):</span>
-              <span id="vTax">0 MMK</span>
-            </div>
-            <div class="flex justify-between text-xs font-bold pt-1 border-t border-slate-300 text-slate-900">
-              <span>GRAND TOTAL:</span>
-              <span id="vGrandTotal" class="font-bold">0 MMK</span>
-            </div>
-          </div>
-
-          <div class="py-2 border-b border-dashed border-slate-400 text-[10px] space-y-0.5 text-slate-700">
-            <div class="flex justify-between">
-              <span>Payment Method:</span>
-              <span id="vPaymentMethod" class="font-bold">CASH</span>
-            </div>
-            <div id="vPaidRow" class="flex justify-between">
-              <span>Paid Amount:</span>
-              <span id="vPaidAmount">0 MMK</span>
-            </div>
-            <div id="vChangeRow" class="flex justify-between font-bold text-slate-900">
-              <span>Change:</span>
-              <span id="vChangeAmount">0 MMK</span>
-            </div>
-          </div>
-
-          <div class="pt-3 text-center space-y-2">
-            <p id="vFooterNote" class="text-[9px] text-slate-600 leading-tight">
-              Thank you for shopping with us!<br>ဝယ်ယူအားပေးမှုအတွက် အထူးကျေးဇူးတင်ပါသည်
-            </p>
-            <div class="flex flex-col items-center justify-center pt-1">
-              <div class="font-mono text-[10px] tracking-widest text-slate-400 uppercase">|||| | ||||| || |||||| ||</div>
-              <span id="vBarcodeText" class="text-[8px] text-slate-400 tracking-wider">INV-000000</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="p-3.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
-        <button onclick="exportVoucherAsPNG()" id="btnExportPng" class="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition shadow-lg shadow-indigo-900/30">
-          <i class="fa-solid fa-image"></i>
-          <span>Export PNG</span>
-        </button>
-
-        <button onclick="printVoucherNative()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
-          <i class="fa-solid fa-print"></i>
-          <span>Print Receipt</span>
-        </button>
-
-        <button onclick="closeVoucherModal()" class="px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition">
-          Done
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PRODUCT EDIT/CREATE MODAL -->
-  <div id="productModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scaleUp">
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-        <div class="flex items-center gap-2">
-          <span class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-bold">
-            <i class="fa-solid fa-box"></i>
-          </span>
-          <h3 id="productModalTitle" class="font-bold text-white text-base">Add New Product</h3>
-        </div>
-        <button onclick="closeProductModal()" class="text-slate-400 hover:text-white text-lg">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <form onsubmit="handleSaveProduct(event)" class="p-5 space-y-3.5 text-xs">
-        <input type="hidden" id="prodFormId">
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 font-medium mb-1">Barcode / SKU *</label>
-            <div class="flex gap-1">
-              <input type="text" id="prodFormBarcode" required placeholder="e.g. 885001" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500">
-              <button type="button" onclick="generateRandomBarcode()" title="Generate Random SKU" class="px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700">
-                <i class="fa-solid fa-shuffle"></i>
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-slate-400 font-medium mb-1">Category *</label>
-            <select id="prodFormCategory" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-slate-400 font-medium mb-1">Product Name (UTF-8 / Myanmar) *</label>
-          <input type="text" id="prodFormName" required placeholder="e.g. Nescafe 3in1 Coffee (နက်စ်ကဖေး)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 font-medium mb-1">Cost Price (Buying) *</label>
-            <input type="number" id="prodFormCost" required min="0" step="any" placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500">
-          </div>
-          <div>
-            <label class="block text-slate-400 font-medium mb-1">Selling Price *</label>
-            <input type="number" id="prodFormPrice" required min="0" step="any" placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 font-medium mb-1">Initial Stock Qty *</label>
-            <input type="number" id="prodFormStock" required min="0" placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500">
-          </div>
-          <div>
-            <label class="block text-slate-400 font-medium mb-1">Low Stock Alert Level</label>
-            <input type="number" id="prodFormAlertLevel" value="5" min="1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-slate-400 font-medium mb-1">Image URL (Optional)</label>
-          <input type="url" id="prodFormImage" placeholder="https://images.unsplash.com/..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-        </div>
-
-        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
-          <button type="button" onclick="closeProductModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold">
-            Cancel
-          </button>
-          <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition shadow-lg shadow-indigo-900/30">
-            Save Product
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- RESTOCK MODAL -->
-  <div id="restockModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-scaleUp">
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-        <div class="flex items-center gap-2">
-          <span class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-truck-ramp-box"></i>
-          </span>
-          <h3 class="font-bold text-white text-sm">Quick Restock</h3>
-        </div>
-        <button onclick="closeRestockModal()" class="text-slate-400 hover:text-white text-base">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="p-4 space-y-3 text-xs">
-        <input type="hidden" id="restockProdId">
-        <div>
-          <div class="text-slate-400">Product:</div>
-          <div id="restockProdName" class="font-bold text-white text-sm mt-0.5">-</div>
-          <div class="text-[11px] text-slate-500">Current Stock: <span id="restockCurrentQty" class="font-mono text-emerald-400">0</span></div>
-        </div>
-
-        <div>
-          <label class="block text-slate-400 font-medium mb-1">Add Quantity (+Qty) *</label>
-          <input type="number" id="restockAddQty" min="1" value="10" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500">
-        </div>
-
-        <div>
-          <label class="block text-slate-400 font-medium mb-1">Supplier / Note</label>
-          <input type="text" id="restockNote" placeholder="e.g. Batch #42 Delivery" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none">
-        </div>
-
-        <div class="pt-2 flex justify-end gap-2">
-          <button onclick="closeRestockModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold">
-            Cancel
-          </button>
-          <button onclick="handleConfirmRestock()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition">
-            Add to Stock
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CATEGORY MODAL -->
-  <div id="categoryModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scaleUp">
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-        <h3 class="font-bold text-white text-sm flex items-center gap-2">
-          <i class="fa-solid fa-tags text-indigo-400"></i> Manage Categories
-        </h3>
-        <button onclick="closeCategoryModal()" class="text-slate-400 hover:text-white text-base">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="p-4 space-y-3">
-        <div class="flex gap-2">
-          <input type="text" id="newCategoryInput" placeholder="New Category Name (e.g. Beverages, Snacks)..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-          <button onclick="handleAddCategory()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition">
-            Add
-          </button>
-        </div>
-
-        <div class="max-h-60 overflow-y-auto divide-y divide-slate-800 border border-slate-800 rounded-xl bg-slate-950 p-2" id="categoryListContainer"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- LOCK MODAL -->
-  <div id="lockModal" class="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-md hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xs p-6 flex flex-col items-center text-center shadow-2xl animate-scaleUp">
-      <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-rose-500 flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-500/20 mb-4">
-        <i class="fa-solid fa-shield-halved"></i>
-      </div>
-
-      <h2 class="text-lg font-bold text-white">StorePOS Pro Locked</h2>
-      <p class="text-xs text-slate-400 mb-5">Enter Admin PIN to unlock system (Default: 1234)</p>
-
-      <div class="flex justify-center gap-2 mb-5">
-        <div id="pinDot0" class="w-3.5 h-3.5 rounded-full border-2 border-slate-700 bg-slate-800"></div>
-        <div id="pinDot1" class="w-3.5 h-3.5 rounded-full border-2 border-slate-700 bg-slate-800"></div>
-        <div id="pinDot2" class="w-3.5 h-3.5 rounded-full border-2 border-slate-700 bg-slate-800"></div>
-        <div id="pinDot3" class="w-3.5 h-3.5 rounded-full border-2 border-slate-700 bg-slate-800"></div>
-      </div>
-
-      <div class="grid grid-cols-3 gap-2.5 w-full">
-        <button onclick="pressPinKey('1')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">1</button>
-        <button onclick="pressPinKey('2')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">2</button>
-        <button onclick="pressPinKey('3')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">3</button>
-        <button onclick="pressPinKey('4')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">4</button>
-        <button onclick="pressPinKey('5')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">5</button>
-        <button onclick="pressPinKey('6')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">6</button>
-        <button onclick="pressPinKey('7')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">7</button>
-        <button onclick="pressPinKey('8')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">8</button>
-        <button onclick="pressPinKey('9')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">9</button>
-        <button onclick="clearPinKey()" class="pin-key py-3 rounded-2xl bg-slate-800/50 hover:bg-slate-700 text-slate-400 font-bold text-xs transition active:scale-95 uppercase">Clear</button>
-        <button onclick="pressPinKey('0')" class="pin-key py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition active:scale-95">0</button>
-        <button onclick="backspacePinKey()" class="pin-key py-3 rounded-2xl bg-slate-800/50 hover:bg-slate-700 text-slate-400 font-bold text-base transition active:scale-95">
-          <i class="fa-solid fa-delete-left"></i>
-        </button>
-      </div>
-
-      <div id="pinErrorMsg" class="text-rose-400 text-xs mt-3 hidden font-semibold animate-pulse">Incorrect PIN! Try again.</div>
-    </div>
-  </div>
-
-  <div id="toastContainer" class="fixed bottom-4 right-4 z-[999] space-y-2 pointer-events-none"></div>
-
-  <script src="./app/src/main/assets/app.js"></script>
 </body>
 </html>
