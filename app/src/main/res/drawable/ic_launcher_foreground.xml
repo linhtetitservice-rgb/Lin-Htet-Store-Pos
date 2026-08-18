@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.75"
+        android:scaleY="0.75"
+        android:translateX="13.5"
+        android:translateY="13.5">
+        <!-- POS Terminal Base -->
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M32,24 L76,24 C80.4,24 84,27.6 84,32 L84,80 C84,84.4 80.4,88 76,88 L32,88 C27.6,88 24,84.4 24,80 L24,32 C24,27.6 27.6,24 32,24 Z" />
+        <!-- Screen -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M32,32 L76,32 C77.1,32 78,32.9 78,34 L78,54 C78,55.1 77.1,56 76,56 L32,56 C30.9,56 30,55.1 30,34 C30,32.9 30.9,32 32,32 Z" />
+        <!-- Keypad Dots -->
+        <path
+            android:fillColor="#0284C7"
+            android:pathData="M36,64h8v6h-8z M50,64h8v6h-8z M64,64h8v6h-8z M36,74h8v6h-8z M50,74h8v6h-8z M64,74h8v6h-8z" />
+        <!-- Card / Receipt Accent -->
+        <path
+            android:fillColor="#FBBF24"
+            android:pathData="M40,16 L68,16 C70.2,16 72,17.8 72,20 L72,28 L36,28 L36,20 C36,17.8 37.8,16 40,16 Z" />
+        <!-- Receipt slit lines -->
+        <path
+            android:fillColor="#F59E0B"
+            android:pathData="M42,20h24v2h-24z M46,24h16v2h-16z" />
+    </group>
+</vector>

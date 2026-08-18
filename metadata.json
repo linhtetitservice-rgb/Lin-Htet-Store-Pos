@@ -1,0 +1,6 @@
+{
+  "name": "StorePOS Pro",
+  "descriptiondescriptiondescriptiondescriptiondescriptiondescription": "Point of Sale (POS) and Store Management System with inventory tracking, thermal voucher generator with PNG export, Telegram Bot sales alerts, offline LocalStorage persistence, and financial analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
