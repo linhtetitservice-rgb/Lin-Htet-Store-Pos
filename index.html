@@ -3,64 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Lin Htet Store POS</title>
+  <title>Lin Htet Store POS Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; user-select: none; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    /* Hide scrollbar for clean UI */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans pb-16">
 
+  <!-- Auth Screen (Admin PIN) -->
+  <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center px-4">
+    <div class="bg-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-xl border border-slate-700 text-center">
+      <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
+      <h2 class="text-xl font-bold mb-2">Admin Login</h2>
+      <p class="text-sm text-slate-400 mb-6">Enter PIN to access the POS system</p>
+      <input type="password" id="login-pin" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-center text-2xl tracking-widest mb-4 focus:outline-none focus:border-emerald-500" placeholder="••••">
+      <button onclick="login()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold py-3 rounded-xl transition">Unlock</button>
+      <p id="login-error" class="text-rose-400 text-sm mt-3 hidden">Incorrect PIN!</p>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-md">
     <div>
-      <h1 id="shop-title" class="font-bold text-lg text-emerald-400">Lin Htet Store POS</h1>
-      <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">READY</span>
-    </div>
-    <div class="flex items-center gap-2">
-      <button onclick="openModal('modal-settings')" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm">⚙️</button>
+      <h1 id="ui-shop-title" class="font-bold text-lg text-emerald-400">Store POS</h1>
+      <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium tracking-wide">SYSTEM ACTIVE</span>
     </div>
   </header>
 
   <!-- Navigation Tabs -->
-  <nav class="flex bg-slate-800/80 border-b border-slate-700 text-xs font-semibold overflow-x-auto">
-    <button onclick="switchTab('pos')" id="tab-btn-pos" class="flex-1 py-3 text-center border-b-2 border-emerald-400 text-emerald-400 font-bold">POS</button>
-    <button onclick="switchTab('inventory')" id="tab-btn-inventory" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400">Inventory</button>
-    <button onclick="switchTab('sales')" id="tab-btn-sales" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400">Sales</button>
-    <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400">Analytics</button>
+  <nav class="flex bg-slate-800/90 border-b border-slate-700 text-xs font-semibold overflow-x-auto sticky top-[53px] z-30 backdrop-blur-md">
+    <button onclick="switchTab('pos')" id="tab-btn-pos" class="flex-1 py-3 px-2 text-center border-b-2 border-emerald-400 text-emerald-400">POS</button>
+    <button onclick="switchTab('inventory')" id="tab-btn-inventory" class="flex-1 py-3 px-2 text-center border-b-2 border-transparent text-slate-400">Inventory</button>
+    <button onclick="switchTab('reports')" id="tab-btn-reports" class="flex-1 py-3 px-2 text-center border-b-2 border-transparent text-slate-400">Reports</button>
+    <button onclick="switchTab('settings')" id="tab-btn-settings" class="flex-1 py-3 px-2 text-center border-b-2 border-transparent text-slate-400">Settings</button>
   </nav>
 
   <!-- POS TAB -->
   <main id="tab-pos" class="tab-content active p-4 flex-1">
-    <div class="mb-4">
-      <input type="text" id="pos-search" oninput="renderPOSProducts()" placeholder="🔍 Search product..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
-    </div>
+    <input type="text" id="pos-search" oninput="renderPOS()" placeholder="🔍 Search by name..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm mb-4 focus:outline-none focus:border-emerald-500">
+    
+    <div id="pos-products" class="grid grid-cols-2 gap-3 mb-6"></div>
 
-    <!-- Product Grid -->
-    <div id="pos-product-list" class="grid grid-cols-2 gap-3 mb-6"></div>
-
-    <!-- Current Bill / Cart Summary -->
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg">
-      <h3 class="font-bold text-sm text-slate-300 mb-2">Current Cart (<span id="cart-count">0</span> items)</h3>
-      <div id="cart-items" class="divide-y divide-slate-700 max-h-40 overflow-y-auto mb-3 text-xs"></div>
-      
-      <div class="flex justify-between items-center text-sm font-semibold border-t border-slate-700 pt-2 mb-3">
-        <span>Total:</span>
-        <span id="cart-total" class="text-lg text-emerald-400 font-black">0 MMK</span>
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg sticky bottom-2">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="font-bold text-sm">Cart (<span id="cart-count">0</span>)</h3>
+        <button onclick="clearCart()" class="text-xs text-rose-400">Clear</button>
       </div>
-
-      <div class="grid grid-cols-2 gap-2 mb-3">
-        <select id="pos-payment" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs">
+      <div id="cart-items" class="divide-y divide-slate-700 max-h-32 overflow-y-auto mb-3 text-xs space-y-1"></div>
+      <div class="flex justify-between items-center text-sm font-bold border-t border-slate-700 pt-3 mb-3">
+        <span>Total:</span>
+        <span id="cart-total" class="text-lg text-emerald-400">0</span>
+      </div>
+      <div class="flex gap-2">
+        <select id="payment-method" class="bg-slate-900 border border-slate-700 rounded-xl px-2 text-xs w-1/3">
           <option value="Cash">Cash</option>
           <option value="KPay">KPay</option>
           <option value="WavePay">WavePay</option>
         </select>
-        <button onclick="checkout()" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-slate-900 font-bold rounded-lg py-2 text-xs transition">
-          Checkout & Voucher
-        </button>
+        <button onclick="checkout()" class="flex-1 bg-emerald-500 text-slate-900 font-bold rounded-xl py-3 text-sm active:scale-95 transition">Checkout</button>
       </div>
     </div>
   </main>
@@ -68,17 +75,17 @@
   <!-- INVENTORY TAB -->
   <main id="tab-inventory" class="tab-content p-4 flex-1">
     <div class="flex justify-between items-center mb-4">
-      <h2 class="font-bold text-base text-slate-200">Stock Inventory</h2>
-      <button onclick="openAddProductModal()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold px-3 py-1.5 rounded-lg text-xs">+ Add Item</button>
+      <h2 class="font-bold text-lg">Stock Management</h2>
+      <button onclick="openModal('modal-add-product')" class="bg-blue-500 text-white font-bold px-3 py-2 rounded-xl text-xs shadow">+ Add Item</button>
     </div>
-    <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
       <table class="w-full text-left text-xs">
-        <thead class="bg-slate-900/50 text-slate-400 border-b border-slate-700">
+        <thead class="bg-slate-900/80 text-slate-400">
           <tr>
             <th class="p-3">Item</th>
-            <th class="p-3">Price</th>
-            <th class="p-3">Qty</th>
-            <th class="p-3 text-right">Action</th>
+            <th class="p-3">Cost/Price</th>
+            <th class="p-3">Stock</th>
+            <th class="p-3 text-right">Act</th>
           </tr>
         </thead>
         <tbody id="inventory-list" class="divide-y divide-slate-700"></tbody>
@@ -86,106 +93,198 @@
     </div>
   </main>
 
-  <!-- SALES TAB -->
-  <main id="tab-sales" class="tab-content p-4 flex-1">
-    <h2 class="font-bold text-base text-slate-200 mb-3">Sales Records</h2>
+  <!-- REPORTS TAB -->
+  <main id="tab-reports" class="tab-content p-4 flex-1">
+    <h2 class="font-bold text-lg mb-4">Financial Reports</h2>
+    <div class="grid grid-cols-2 gap-3 mb-6">
+      <div class="bg-slate-800 border border-slate-700 p-4 rounded-2xl">
+        <p class="text-xs text-slate-400 mb-1">Total Revenue</p>
+        <h3 id="stat-revenue" class="text-lg font-bold text-white">0</h3>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-4 rounded-2xl">
+        <p class="text-xs text-slate-400 mb-1">Total Profit</p>
+        <h3 id="stat-profit" class="text-lg font-bold text-emerald-400">0</h3>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 p-4 rounded-2xl col-span-2 flex justify-between items-center">
+        <div>
+          <p class="text-xs text-slate-400 mb-1">Profit Margin</p>
+          <h3 id="stat-margin" class="text-lg font-bold text-blue-400">0%</h3>
+        </div>
+        <button onclick="clearSalesData()" class="text-xs bg-rose-500/20 text-rose-400 px-3 py-2 rounded-lg">Clear Data</button>
+      </div>
+    </div>
+    <h3 class="font-bold text-sm mb-2 text-slate-300">Transaction History</h3>
     <div id="sales-list" class="space-y-2 text-xs"></div>
   </main>
 
-  <!-- ANALYTICS TAB -->
-  <main id="tab-analytics" class="tab-content p-4 flex-1">
-    <h2 class="font-bold text-base text-slate-200 mb-3">Analytics & Profit</h2>
-    <div class="grid grid-cols-2 gap-3 mb-4">
-      <div class="bg-slate-800 border border-slate-700 p-3 rounded-xl">
-        <p class="text-xs text-slate-400">Total Revenue</p>
-        <h3 id="stat-revenue" class="text-base font-bold text-emerald-400">0 MMK</h3>
-      </div>
-      <div class="bg-slate-800 border border-slate-700 p-3 rounded-xl">
-        <p class="text-xs text-slate-400">Net Profit</p>
-        <h3 id="stat-profit" class="text-base font-bold text-blue-400">0 MMK</h3>
+  <!-- SETTINGS TAB -->
+  <main id="tab-settings" class="tab-content p-4 flex-1 space-y-6">
+    <div>
+      <h2 class="font-bold text-lg mb-3">Store Details</h2>
+      <input type="text" id="set-shop-name" placeholder="Shop Name" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm mb-2 focus:outline-none">
+      <input type="text" id="set-pin" placeholder="Admin PIN (Default: 1234)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm mb-2 focus:outline-none">
+    </div>
+
+    <div>
+      <h2 class="font-bold text-lg mb-3 flex items-center gap-2"><span class="text-blue-400">Telegram Bot</span></h2>
+      <input type="text" id="set-tg-token" placeholder="Bot Token" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm mb-2 focus:outline-none">
+      <input type="text" id="set-tg-chatid" placeholder="Chat ID" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm mb-2 focus:outline-none">
+      <p class="text-[10px] text-slate-400">Receipts will automatically send to Telegram if configured.</p>
+    </div>
+
+    <button onclick="saveSettings()" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl mb-6">Save Settings</button>
+
+    <div class="border-t border-slate-700 pt-6">
+      <h2 class="font-bold text-lg mb-3 text-rose-400">Backup & Restore</h2>
+      <div class="flex gap-2">
+        <button onclick="exportData()" class="flex-1 bg-slate-700 text-white py-3 rounded-xl text-sm font-bold">Export Backup</button>
+        <label class="flex-1 bg-slate-700 text-white py-3 rounded-xl text-sm font-bold text-center cursor-pointer">
+          Import Backup
+          <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
+        </label>
       </div>
     </div>
   </main>
 
-  <!-- Voucher Receipt Modal -->
-  <div id="modal-voucher" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-sm w-full p-4 flex flex-col">
-      <div id="voucher-preview" class="bg-white text-black p-4 rounded-xl text-xs font-mono mb-4">
-        <div class="text-center pb-2 border-b border-dashed border-gray-300">
-          <h3 id="v-shop" class="font-bold text-base">Shop Name</h3>
-          <p id="v-date" class="text-[10px] text-gray-500"></p>
-        </div>
-        <div id="v-items" class="py-2 border-b border-dashed border-gray-300 space-y-1"></div>
-        <div class="pt-2 flex justify-between font-bold text-sm">
-          <span>TOTAL:</span>
-          <span id="v-total">0</span>
-        </div>
-        <p class="text-center text-[10px] text-gray-400 mt-2">Thank you! Come again.</p>
+  <!-- MODALS -->
+  <!-- Add/Edit Product Modal -->
+  <div id="modal-add-product" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-5">
+      <h3 class="font-bold text-lg mb-4">Add / Edit Item</h3>
+      <input type="hidden" id="prod-id">
+      <div class="space-y-3 mb-4">
+        <input type="text" id="prod-name" placeholder="Item Name" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white">
+        <input type="number" id="prod-cost" placeholder="Cost Price (Buy)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white">
+        <input type="number" id="prod-price" placeholder="Selling Price" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white">
+        <input type="number" id="prod-stock" placeholder="Stock Quantity" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white">
       </div>
+      <div class="flex gap-2">
+        <button onclick="saveProduct()" class="flex-1 bg-emerald-500 text-slate-900 font-bold py-2 rounded-xl text-sm">Save</button>
+        <button onclick="closeModal('modal-add-product')" class="flex-1 bg-slate-700 text-white font-bold py-2 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt / Voucher Modal -->
+  <div id="modal-voucher" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-4 my-auto">
+      
+      <!-- Receipt Content to turn into PNG -->
+      <div id="receipt-card" class="bg-white text-slate-900 p-5 rounded-lg text-xs font-mono mb-4 shadow-xl">
+        <div class="text-center pb-3 border-b-2 border-dashed border-slate-300">
+          <h2 id="r-shop-name" class="text-xl font-bold uppercase mb-1">Store Name</h2>
+          <p id="r-date" class="text-slate-500"></p>
+          <p id="r-payment" class="text-slate-500 font-bold mt-1 bg-slate-100 inline-block px-2 py-0.5 rounded"></p>
+        </div>
+        <div id="r-items" class="py-3 border-b-2 border-dashed border-slate-300 space-y-2"></div>
+        <div class="pt-3">
+          <div class="flex justify-between font-bold text-sm">
+            <span>TOTAL AMOUNT:</span>
+            <span id="r-total">0</span>
+          </div>
+        </div>
+        <div class="text-center mt-5 text-slate-400 text-[10px]">
+          <p>*** THANK YOU ***</p>
+        </div>
+      </div>
+
       <div class="grid grid-cols-2 gap-2">
-        <button onclick="downloadVoucherPNG()" class="bg-emerald-500 text-slate-900 font-bold py-2 rounded-lg text-xs">Download PNG</button>
-        <button onclick="closeModal('modal-voucher')" class="bg-slate-700 text-white py-2 rounded-lg text-xs">Close</button>
+        <button onclick="downloadReceiptPNG()" class="bg-emerald-500 text-slate-900 font-bold py-3 rounded-xl text-sm">Save PNG</button>
+        <button onclick="closeModal('modal-voucher')" class="bg-slate-700 text-white font-bold py-3 rounded-xl text-sm">Close</button>
       </div>
     </div>
   </div>
 
   <script>
-    // State
-    let products = JSON.parse(localStorage.getItem('pos_products')) || [
-      { id: 1, name: 'Cola Can', cost: 1000, price: 1500, stock: 20 },
-      { id: 2, name: 'Coffee Mix', cost: 300, price: 500, stock: 50 }
-    ];
+    /* --- DATA & STATE MANAGEMENT --- */
+    let data = JSON.parse(localStorage.getItem('pos_data')) || {
+      settings: { shopName: 'Lin Htet Store', pin: '1234', tgToken: '', tgChatId: '' },
+      products: [],
+      sales: []
+    };
     let cart = [];
-    let sales = JSON.parse(localStorage.getItem('pos_sales')) || [];
-    let settings = JSON.parse(localStorage.getItem('pos_settings')) || { shopName: 'Lin Htet Store' };
 
-    function saveState() {
-      localStorage.setItem('pos_products', JSON.stringify(products));
-      localStorage.setItem('pos_sales', JSON.stringify(sales));
-      localStorage.setItem('pos_settings', JSON.stringify(settings));
+    function saveData() {
+      localStorage.setItem('pos_data', JSON.stringify(data));
     }
 
-    function switchTab(tabName) {
+    /* --- INIT & AUTH --- */
+    window.onload = () => {
+      document.getElementById('ui-shop-title').innerText = data.settings.shopName;
+      // Load Settings Inputs
+      document.getElementById('set-shop-name').value = data.settings.shopName;
+      document.getElementById('set-pin').value = data.settings.pin;
+      document.getElementById('set-tg-token').value = data.settings.tgToken;
+      document.getElementById('set-tg-chatid').value = data.settings.tgChatId;
+    };
+
+    function login() {
+      const pin = document.getElementById('login-pin').value;
+      if (pin === data.settings.pin) {
+        document.getElementById('auth-screen').classList.add('hidden');
+        renderPOS();
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    }
+
+    /* --- UI NAVIGATION --- */
+    function switchTab(tab) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.getElementById('tab-' + tabName).classList.add('active');
-      ['pos', 'inventory', 'sales', 'analytics'].forEach(t => {
+      document.getElementById('tab-' + tab).classList.add('active');
+      
+      const tabs = ['pos', 'inventory', 'reports', 'settings'];
+      tabs.forEach(t => {
         const btn = document.getElementById('tab-btn-' + t);
-        if (t === tabName) {
-          btn.className = 'flex-1 py-3 text-center border-b-2 border-emerald-400 text-emerald-400 font-bold';
+        if (t === tab) {
+          btn.className = 'flex-1 py-3 px-2 text-center border-b-2 border-emerald-400 text-emerald-400';
         } else {
-          btn.className = 'flex-1 py-3 text-center border-b-2 border-transparent text-slate-400';
+          btn.className = 'flex-1 py-3 px-2 text-center border-b-2 border-transparent text-slate-400';
         }
       });
-      if (tabName === 'inventory') renderInventory();
-      if (tabName === 'sales') renderSales();
-      if (tabName === 'analytics') renderAnalytics();
+
+      if (tab === 'pos') renderPOS();
+      if (tab === 'inventory') renderInventory();
+      if (tab === 'reports') renderReports();
     }
 
-    function renderPOSProducts() {
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      document.getElementById(id).classList.add('flex');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
+    }
+
+    /* --- POS LOGIC --- */
+    function renderPOS() {
       const q = document.getElementById('pos-search').value.toLowerCase();
-      const list = document.getElementById('pos-product-list');
+      const list = document.getElementById('pos-products');
       list.innerHTML = '';
-      products.filter(p => p.name.toLowerCase().includes(q)).forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'bg-slate-800 border border-slate-700 p-3 rounded-xl cursor-pointer active:bg-slate-700';
-        card.onclick = () => addToCart(p.id);
-        card.innerHTML = `
-          <h4 class="font-bold text-xs text-slate-200">${p.name}</h4>
-          <div class="flex justify-between items-center mt-2">
-            <span class="text-emerald-400 font-bold text-xs">${p.price} MMK</span>
-            <span class="text-[10px] text-slate-400">Stock: ${p.stock}</span>
+      
+      data.products.filter(p => p.name.toLowerCase().includes(q)).forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'bg-slate-800 border border-slate-700 p-3 rounded-xl cursor-pointer active:scale-95 transition';
+        div.onclick = () => addToCart(p.id);
+        div.innerHTML = `
+          <h4 class="font-bold text-sm text-slate-200 truncate">${p.name}</h4>
+          <div class="flex justify-between items-end mt-2">
+            <span class="text-emerald-400 font-bold text-sm">${Number(p.price).toLocaleString()}</span>
+            <span class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">Qty: ${p.stock}</span>
           </div>
         `;
-        list.appendChild(card);
+        list.appendChild(div);
       });
+      renderCart();
     }
 
     function addToCart(id) {
-      const p = products.find(x => x.id === id);
+      const p = data.products.find(x => x.id === id);
       if (!p || p.stock <= 0) return alert('Out of stock!');
       const exist = cart.find(x => x.id === id);
       if (exist) {
-        if (exist.qty >= p.stock) return alert('Exceeds available stock!');
+        if (exist.qty >= p.stock) return alert('Not enough stock!');
         exist.qty++;
       } else {
         cart.push({ ...p, qty: 1 });
@@ -193,128 +292,129 @@
       renderCart();
     }
 
+    function clearCart() {
+      cart = [];
+      renderCart();
+    }
+
     function renderCart() {
       const el = document.getElementById('cart-items');
       el.innerHTML = '';
-      let total = 0;
-      let count = 0;
-      cart.forEach(item => {
-        total += item.price * item.qty;
-        count += item.qty;
-        const row = document.createElement('div');
-        row.className = 'py-1 flex justify-between items-center';
-        row.innerHTML = `
-          <span>${item.name} x${item.qty}</span>
-          <span class="font-semibold">${item.price * item.qty} MMK</span>
+      let total = 0; let count = 0;
+      cart.forEach((item, index) => {
+        const itemTotal = item.price * item.qty;
+        total += itemTotal; count += item.qty;
+        el.innerHTML += `
+          <div class="py-2 flex justify-between items-center">
+            <div class="flex-1">
+              <p class="font-bold truncate">${item.name}</p>
+              <p class="text-[10px] text-slate-400">${item.price} x ${item.qty}</p>
+            </div>
+            <div class="text-right flex items-center gap-2">
+              <span class="font-bold text-emerald-400">${itemTotal.toLocaleString()}</span>
+              <button onclick="removeFromCart(${index})" class="text-rose-400 bg-rose-500/10 w-6 h-6 rounded-full">×</button>
+            </div>
+          </div>
         `;
-        el.appendChild(row);
       });
       document.getElementById('cart-count').innerText = count;
-      document.getElementById('cart-total').innerText = total + ' MMK';
+      document.getElementById('cart-total').innerText = total.toLocaleString();
+    }
+
+    function removeFromCart(index) {
+      cart.splice(index, 1);
+      renderCart();
     }
 
     function checkout() {
-      if (cart.length === 0) return alert('Cart is empty!');
-      const total = cart.reduce((a, b) => a + (b.price * b.qty), 0);
-      const cost = cart.reduce((a, b) => a + (b.cost * b.qty), 0);
-      const sale = {
-        id: Date.now(),
-        date: new Date().toLocaleString(),
-        items: [...cart],
-        total: total,
-        profit: total - cost,
-        payment: document.getElementById('pos-payment').value
-      };
+      if (cart.length === 0) return;
+      
+      const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+      const cost = cart.reduce((sum, i) => sum + (i.cost * i.qty), 0);
+      const profit = total - cost;
+      const payment = document.getElementById('payment-method').value;
+      const date = new Date().toLocaleString('en-US', {hour12:true});
 
-      // Deduct stock
+      const sale = { id: Date.now(), date, items: [...cart], total, profit, payment };
+      data.sales.unshift(sale);
+
+      // Deduct Stock
       cart.forEach(c => {
-        const prod = products.find(p => p.id === c.id);
+        const prod = data.products.find(p => p.id === c.id);
         if (prod) prod.stock -= c.qty;
       });
+      saveData();
 
-      sales.unshift(sale);
-      saveState();
+      // Build Receipt
+      document.getElementById('r-shop-name').innerText = data.settings.shopName;
+      document.getElementById('r-date').innerText = date;
+      document.getElementById('r-payment').innerText = 'Paid via: ' + payment;
+      document.getElementById('r-total').innerText = total.toLocaleString();
+      
+      const rItems = document.getElementById('r-items');
+      rItems.innerHTML = '';
+      let tgMsgText = `🛒 *New Order* - ${data.settings.shopName}\n📅 ${date}\n💳 Method: ${payment}\n\n`;
 
-      // Show Voucher
-      document.getElementById('v-shop').innerText = settings.shopName || 'Store POS';
-      document.getElementById('v-date').innerText = sale.date;
-      document.getElementById('v-total').innerText = total + ' MMK';
-      const vi = document.getElementById('v-items');
-      vi.innerHTML = '';
       cart.forEach(i => {
-        vi.innerHTML += `<div class="flex justify-between"><span>${i.name} x${i.qty}</span><span>${i.price * i.qty}</span></div>`;
+        rItems.innerHTML += `<div class="flex justify-between"><span>${i.name} (x${i.qty})</span><span>${(i.price * i.qty).toLocaleString()}</span></div>`;
+        tgMsgText += `- ${i.name} (x${i.qty}) : ${(i.price * i.qty).toLocaleString()}\n`;
       });
+      
+      tgMsgText += `\n💰 *Total: ${total.toLocaleString()}*`;
+
+      // Trigger Telegram Notification
+      sendTelegram(tgMsgText);
 
       cart = [];
-      renderCart();
-      renderPOSProducts();
+      renderPOS();
       openModal('modal-voucher');
     }
 
+    async function sendTelegram(msg) {
+      const { tgToken, tgChatId } = data.settings;
+      if (!tgToken || !tgChatId) return;
+      try {
+        await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: tgChatId, text: msg, parse_mode: 'Markdown' })
+        });
+      } catch(e) { console.error("Telegram Error", e); }
+    }
+
+    function downloadReceiptPNG() {
+      const node = document.getElementById('receipt-card');
+      html2canvas(node, { scale: 2 }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `Voucher_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+
+    /* --- INVENTORY LOGIC --- */
     function renderInventory() {
       const tb = document.getElementById('inventory-list');
       tb.innerHTML = '';
-      products.forEach(p => {
+      data.products.forEach(p => {
         tb.innerHTML += `
-          <tr class="hover:bg-slate-800/50">
-            <td class="p-3 font-semibold">${p.name}</td>
-            <td class="p-3">${p.price}</td>
-            <td class="p-3">${p.stock}</td>
+          <tr class="hover:bg-slate-700/50">
+            <td class="p-3 font-semibold truncate max-w-[100px]">${p.name}</td>
+            <td class="p-3 text-[10px] text-slate-300">
+              C: ${Number(p.cost).toLocaleString()}<br>
+              <span class="text-emerald-400 font-bold text-xs">P: ${Number(p.price).toLocaleString()}</span>
+            </td>
+            <td class="p-3 font-bold">${p.stock}</td>
             <td class="p-3 text-right">
-              <button onclick="deleteProduct(${p.id})" class="text-rose-400 font-bold">Del</button>
+              <button onclick="editProduct(${p.id})" class="text-blue-400 mr-2">Edit</button>
+              <button onclick="deleteProduct(${p.id})" class="text-rose-400">Del</button>
             </td>
           </tr>
         `;
       });
     }
 
-    function renderSales() {
-      const sl = document.getElementById('sales-list');
-      sl.innerHTML = '';
-      sales.forEach(s => {
-        sl.innerHTML += `
-          <div class="bg-slate-800 border border-slate-700 p-3 rounded-xl flex justify-between items-center">
-            <div>
-              <p class="font-bold text-slate-200">${s.payment} - ${s.total} MMK</p>
-              <p class="text-[10px] text-slate-400">${s.date}</p>
-            </div>
-            <span class="text-xs text-emerald-400 font-semibold">+${s.profit} Profit</span>
-          </div>
-        `;
-      });
-    }
-
-    function renderAnalytics() {
-      const rev = sales.reduce((a, b) => a + b.total, 0);
-      const prof = sales.reduce((a, b) => a + b.profit, 0);
-      document.getElementById('stat-revenue').innerText = rev + ' MMK';
-      document.getElementById('stat-profit').innerText = prof + ' MMK';
-    }
-
-    function downloadVoucherPNG() {
-      const node = document.getElementById('voucher-preview');
-      html2canvas(node).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'voucher-' + Date.now() + '.png';
-        link.href = canvas.toDataURL();
-        link.click();
-      });
-    }
-
-    function openModal(id) {
-      document.getElementById(id).classList.remove('hidden');
-      document.getElementById(id).classList.add('flex');
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.add('hidden');
-      document.getElementById(id).classList.remove('flex');
-    }
-
-    // Init
-    window.onload = () => {
-      renderPOSProducts();
-    };
-  </script>
-</body>
-</html>
+    function editProduct(id) {
+      const p = data.products.find(x => x.id === id);
+      document.getElementById('prod-id').value = p.id;
+      document.getElementByI
